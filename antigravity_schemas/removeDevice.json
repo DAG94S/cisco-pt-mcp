@@ -1,0 +1,1 @@
+{"name":"removeDevice","description":"Remove one or more devices from the workspace.","parameters":{"properties":{"deviceNames":{"description":"Array of existing device names to remove.","items":{"type":"string"},"type":"array"}},"required":["deviceNames"],"type":"object"}}

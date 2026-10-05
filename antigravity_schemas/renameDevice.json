@@ -1,0 +1,1 @@
+{"name":"renameDevice","description":"Rename an existing device. The new name must be unique in the workspace.","parameters":{"properties":{"deviceName":{"description":"Current device name.","type":"string"},"newName":{"description":"New unique name for the device.","type":"string"}},"required":["deviceName","newName"],"type":"object"}}

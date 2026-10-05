@@ -1,0 +1,1 @@
+{"name":"getDeviceInfo","description":"Detailed info about one device, including interfaces and incident links.","parameters":{"properties":{"deviceName":{"type":"string"}},"required":["deviceName"],"type":"object"}}

@@ -1,0 +1,1 @@
+{"name":"setSimulationMode","description":"Switch Packet Tracer between simulation mode and realtime mode. Simulation mode is required before sending PDUs or stepping through traffic.","parameters":{"properties":{"toSimMode":{"description":"true = simulation mode, false = realtime mode.","type":"boolean"}},"required":["toSimMode"],"type":"object"}}

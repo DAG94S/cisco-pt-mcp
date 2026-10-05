@@ -723,3 +723,30 @@ removeLink = function (links) {
     return fail("Error removing links", error);
   }
 };
+
+addNote = function (text, x, y) {
+  try {
+    var workspace = ipc.appWindow().getActiveWorkspace().getLogicalWorkspace();
+    var layer = 0.0;
+    if (workspace && typeof workspace.getIncNoteZOrder === "function") {
+      layer = workspace.getIncNoteZOrder();
+    } else if (workspace && typeof workspace.getUnusedLayer === "function") {
+      layer = workspace.getUnusedLayer();
+    }
+
+    var noteUuid = workspace.addNote(parseInt(x), parseInt(y), Number(layer), String(text));
+
+    return {
+      success: true,
+      message: "Note '" + text + "' placed at (" + x + ", " + y + ")",
+      uuid: String(noteUuid),
+      text: text,
+      x: x,
+      y: y,
+    };
+  } catch (error) {
+    return fail("Error adding note", error);
+  }
+};
+
+

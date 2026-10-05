@@ -1,0 +1,1 @@
+{"name":"moveDevice","description":"Move a device to new coordinates on the logical workspace canvas.","parameters":{"properties":{"deviceName":{"description":"Device to reposition.","type":"string"},"x":{"description":"New X coordinate.","type":"number"},"y":{"description":"New Y coordinate.","type":"number"}},"required":["deviceName","x","y"],"type":"object"}}

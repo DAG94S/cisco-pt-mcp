@@ -1,0 +1,1 @@
+{"name":"deleteNote","description":"Delete an existing floating text note from the workspace canvas.","parameters":{"properties":{"noteId":{"description":"UUID of the note to delete.","type":"string"}},"required":["noteId"],"type":"object"}}

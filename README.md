@@ -83,8 +83,43 @@ Click **Extensions → Packet Tracer MCP** to open the bridge window, then start
 | `sendPdu` | Add an ICMP ping PDU between two devices |
 | `getPduResults` | Read PDU outcomes after stepping the simulation |
 | `getCommandLog` | Read the IOS command history logged by Packet Tracer |
+| `addNote` | Place floating text note / IP annotation on canvas |
+| `getNotes` | Read all text notes on canvas with text, coordinates, and UUIDs |
+| `updateNote` | Modify note text content or canvas coordinates |
+| `deleteNote` | Remove a text note from canvas by UUID |
+| `saveFile` | Save active Packet Tracer workspace (.pkt) to an absolute path |
+| `execCommand` | Execute a single IOS command and capture real terminal output |
 
 ---
+
+## Installation from this Repository
+
+```sh
+# Clone this repository
+git clone https://github.com/DAG94S/cisco-pt-mcp.git
+cd cisco-pt-mcp
+
+# Install in editable mode
+pip install -e .
+```
+
+### Configure in Claude Code (`~/.claude.json`)
+```json
+{
+  "mcpServers": {
+    "cisco-pt-mcp": {
+      "type": "stdio",
+      "command": "cisco-pt-mcp"
+    }
+  }
+}
+```
+
+### Antigravity AI Bridge (`cisco_pt_bridge.py`)
+To use with Antigravity assistant on port 7532:
+```sh
+python cisco_pt_bridge.py
+```
 
 ## License
 

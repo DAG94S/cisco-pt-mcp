@@ -1,0 +1,1 @@
+{"name":"getNetwork","description":"Snapshot of the entire workspace: every device, its interfaces (with in_use flags), and every cable. Call this before addLink or removeDevice when unsure of current state.","parameters":{"properties":{},"required":[],"type":"object"}}

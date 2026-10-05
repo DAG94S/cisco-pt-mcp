@@ -127,7 +127,9 @@
     setPower:            ["deviceName", "power"],
     getPduResults:       ["types"],
     getCommandLog:       ["deviceName", "limit"],
+    addNote:             ["text", "x", "y"],
   };
+
 
   function buildPositionalArgs(tool, input) {
     var spec = TOOL_ARGS[tool];

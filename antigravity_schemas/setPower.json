@@ -1,0 +1,1 @@
+{"name":"setPower","description":"Power a device on or off.","parameters":{"properties":{"deviceName":{"description":"Device name.","type":"string"},"power":{"description":"true = power on, false = power off.","type":"boolean"}},"required":["deviceName","power"],"type":"object"}}

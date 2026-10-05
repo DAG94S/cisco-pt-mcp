@@ -1,0 +1,1 @@
+{"name":"getNotes","description":"Read all floating text notes / IP annotations placed on the workspace canvas, including their texts, coordinates (x, y), and UUIDs.","parameters":{"properties":{},"required":[],"type":"object"}}

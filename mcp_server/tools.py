@@ -352,6 +352,125 @@ TOOLS: list[dict] = [
             "required": [],
         },
     },
+    {
+        "name": "addNote",
+        "description": (
+            "Place a floating text note / IP annotation on the logical workspace canvas. "
+            "Useful for labeling subnets, IPs, and VLANs."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "Content of the note to display on canvas.",
+                },
+                "x": {
+                    "type": "number",
+                    "description": "X coordinate on the workspace canvas.",
+                },
+                "y": {
+                    "type": "number",
+                    "description": "Y coordinate on the workspace canvas.",
+                },
+            },
+            "required": ["text", "x", "y"],
+        },
+    },
+    {
+        "name": "getNotes",
+        "description": (
+            "Read all floating text notes / IP annotations placed on the workspace canvas, "
+            "including their texts, coordinates (x, y), and UUIDs."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "updateNote",
+        "description": (
+            "Modify the text content or position of an existing note on the workspace canvas."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "noteId": {"type": "string", "description": "UUID of the note to update."},
+                "text": {"type": "string", "description": "New text content for the note."},
+                "x": {"type": "number", "description": "New X coordinate on workspace canvas."},
+                "y": {"type": "number", "description": "New Y coordinate on workspace canvas."},
+            },
+            "required": ["noteId"],
+        },
+    },
+    {
+        "name": "deleteNote",
+        "description": (
+            "Delete an existing floating text note from the workspace canvas."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "noteId": {"type": "string", "description": "UUID of the note to delete."},
+            },
+            "required": ["noteId"],
+        },
+    },
+    {
+        "name": "saveFile",
+        "description": (
+            "Save the active Packet Tracer workspace to an absolute path. "
+            "Packet Tracer reports save status through an event, not a return "
+            "value, so always verify afterwards that the file exists on disk. "
+            "The target directory must already exist."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "filePath": {
+                    "type": "string",
+                    "description": (
+                        "Absolute Windows path ending in .pkt, forward slashes "
+                        "accepted (e.g. F:/Labs/U1_02_LAB_OSPF_solucion.pkt)."
+                    ),
+                    "pattern": r"^[A-Za-z]:[/\\].+\.pkt$",
+                },
+            },
+            "required": ["filePath"],
+        },
+    },
+    {
+        "name": "execCommand",
+        "description": (
+            "Run one IOS command on a device and return the new console output "
+            "it produced. Use this to capture real 'show' output instead of "
+            "writing it from memory. Output that depends on simulator timing "
+            "(ping, traceroute) may come back incomplete; re-read by issuing "
+            "the command again."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "deviceName": {"type": "string", "description": "Existing device name."},
+                "command": {
+                    "type": "string",
+                    "description": "A single IOS command, e.g. 'show ip ospf neighbor'.",
+                },
+                "mode": {
+                    "type": "string",
+                    "description": (
+                        "IOS mode to run it in. Defaults to 'enable', which is "
+                        "where show commands live. Use '' to keep the current mode."
+                    ),
+                },
+            },
+            "required": ["deviceName", "command"],
+        },
+    },
 ]
-
 TOOLS_BY_NAME: dict[str, dict] = {t["name"]: t for t in TOOLS}
+
+
+

@@ -1,0 +1,1 @@
+{"name":"configureIosDevice","description":"Execute IOS commands on a router or switch. Commands run from global config and are saved with 'write memory'.","parameters":{"properties":{"commands":{"description":"Newline-separated IOS commands.","type":"string"},"deviceName":{"type":"string"}},"required":["deviceName","commands"],"type":"object"}}

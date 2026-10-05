@@ -1,0 +1,1 @@
+{"name":"getSimulationStatus","description":"Query the current simulation state: mode (realtime or simulation), elapsed simulation time, PDU frame count, and current frame index.","parameters":{"properties":{},"required":[],"type":"object"}}
