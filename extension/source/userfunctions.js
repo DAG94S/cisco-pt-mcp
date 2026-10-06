@@ -273,25 +273,6 @@ getNetwork = function () {
       }
     }
 
-    // Pass 4: collect canvas notes
-    var notes = [];
-
-    try {
-      var ws = ipc.appWindow().getActiveWorkspace().getLogicalWorkspace();
-      if (ws && typeof ws.getCanvasNoteIds === "function") {
-        var noteIds = ws.getCanvasNoteIds();
-        for (var n = 0; n < noteIds.length; n++) {
-          var nid = noteIds[n];
-          notes.push({
-            id: String(nid),
-            text: String(ws.getCanvasNoteText(nid)),
-            x: Number(ws.getCanvasItemX(nid)),
-            y: Number(ws.getCanvasItemY(nid)),
-          });
-        }
-      }
-    } catch (_) {}
-
     return {
       success: true,
       result: {
@@ -299,38 +280,12 @@ getNetwork = function () {
         connectionCount: connections.length,
         devices: devices,
         connections: connections,
-        notes: notes,
       },
     };
   } catch (error) {
     return fail("", error);
   }
 };
-
-getNotes = function () {
-  try {
-    var ws = ipc.appWindow().getActiveWorkspace().getLogicalWorkspace();
-    var noteIds = ws.getCanvasNoteIds();
-    var notes = [];
-    for (var i = 0; i < noteIds.length; i++) {
-      var id = noteIds[i];
-      notes.push({
-        id: String(id),
-        text: String(ws.getCanvasNoteText(id)),
-        x: Number(ws.getCanvasItemX(id)),
-        y: Number(ws.getCanvasItemY(id)),
-      });
-    }
-    return {
-      success: true,
-      notes: notes,
-      count: notes.length,
-    };
-  } catch (error) {
-    return fail("Error getting notes", error);
-  }
-};
-
 
 getDeviceInfo = function (deviceName) {
   try {
@@ -794,174 +749,4 @@ addNote = function (text, x, y) {
   }
 };
 
-updateNote = function (noteId, text, x, y) {
-  try {
-    var workspace = ipc.appWindow().getActiveWorkspace().getLogicalWorkspace();
-    var ok = true;
-    if (text !== undefined && text !== null && text !== "") {
-      ok = workspace.changeNoteText(noteId, String(text));
-    }
-    if (x !== undefined && y !== undefined && x !== null && y !== null) {
-      workspace.setCanvasItemRealPos(noteId, parseInt(x), parseInt(y));
-    }
-    return {
-      success: ok,
-      message: "Note " + noteId + " updated successfully",
-      noteId: String(noteId),
-      text: text,
-      x: x,
-      y: y,
-    };
-  } catch (error) {
-    return fail("Error updating note", error);
-  }
-};
-
-deleteNote = function (noteId) {
-  try {
-    var workspace = ipc.appWindow().getActiveWorkspace().getLogicalWorkspace();
-    var ok = workspace.removeCanvasItem(noteId);
-    return {
-      success: ok,
-      message: "Note " + noteId + " deleted successfully",
-      noteId: String(noteId),
-    };
-  } catch (error) {
-    return fail("Error deleting note", error);
-  }
-};
-
-
-
-// ---------------------------------------------------------------------------
-// Añadido: guardado del workspace y captura de salida de CLI.
-// Pegar TAL CUAL al final de userfunctions.js, después de deleteNote.
-// ---------------------------------------------------------------------------
-
-saveFile = function (filePath) {
-  try {
-    if (!filePath) {
-      return { success: false, error: "filePath is required" };
-    }
-    // fileSaveAsNoPrompt(filename, bAsync) devuelve void: el estado real llega
-    // por el evento fileSaveDone(). Con bAsync=false la llamada es sincrona,
-    // asi que al retornar el archivo deberia existir; el llamador lo verifica.
-    ipc.appWindow().fileSaveAsNoPrompt(String(filePath), false);
-    return {
-      success: true,
-      message: "Save requested: " + filePath,
-      path: String(filePath),
-      note: "verify on disk; PT reports save status via event, not return value",
-    };
-  } catch (error) {
-    return fail("Error saving file", error);
-  }
-};
-
-execCommand = function (deviceName, command, mode) {
-  try {
-    var device = ipc.network().getDevice(deviceName);
-    if (!device) {
-      return { success: false, error: "Device not found: " + deviceName };
-    }
-
-    var useMode = mode ? String(mode) : "enable";
-    var raw = device.enterCommand(String(command), useMode);
-
-    var result = {
-      success: true,
-      device: deviceName,
-      command: String(command),
-      mode: useMode,
-      output: "",
-    };
-
-    // enterCommand devuelve pair<CommandStatus, string>. No suponemos la forma
-    // exacta que toma en el motor de scripts: probamos indices y claves.
-    if (raw !== null && raw !== undefined) {
-      result.rawType = typeof raw;
-      if (typeof raw === "string") {
-        result.output = raw;
-        result.outputFrom = "return";
-      } else if (typeof raw === "object") {
-        try { result.rawKeys = Object.keys(raw).join(","); } catch (e) {}
-        try { result.rawJson = String(JSON.stringify(raw)).slice(0, 600); } catch (e) {}
-        var cand  = [raw[1], raw.second, raw.output, raw.text, raw[0], raw.first];
-        var names = ["idx1", "second", "output", "text", "idx0", "first"];
-        for (var i = 0; i < cand.length; i++) {
-          if (typeof cand[i] === "string" && cand[i].length > 0) {
-            result.output = cand[i];
-            result.outputFrom = names[i];
-            break;
-          }
-        }
-        if (!result.output) {
-          for (var k = 0; k < cand.length; k++) {
-            if (cand[k] !== undefined && cand[k] !== null) {
-              try { result["probe_" + names[k]] = String(cand[k]).slice(0, 200); } catch (e) {}
-            }
-          }
-        }
-      }
-    }
-
-    // Segunda via: el buffer acumulado de la consola, por si el retorno no trae texto.
-    try {
-      var line = device.getCommandLine();
-      if (line) {
-        if (typeof line.getOutput === "function") {
-          var buf = String(line.getOutput() || "");
-          result.consoleTail = buf.slice(-600);
-        }
-        try { result.prompt = String(line.getPrompt()); } catch (e) {}
-      }
-    } catch (e) {}
-
-    return result;
-  } catch (error) {
-    return fail("Error executing command", error);
-  }
-};
-probeApi = function (deviceName) {
-  try {
-    var candidates = [
-      "addEllipse", "addPolygon", "addRectangle", "addShape", "addLine", "addLabel",
-      "addNote", "getIncNoteZOrder", "getUnusedLayer",
-    ];
-    var deviceCandidates = [
-      "addModule", "removeModule", "getModule", "getModuleAt", "getModuleCount",
-      "setPower", "getPower", "skipBoot", "getPortCount", "getPortAt",
-    ];
-
-    var describe = function (obj, names) {
-      var out = {};
-      for (var i = 0; i < names.length; i++) {
-        var member;
-        try { member = obj[names[i]]; } catch (e) { member = undefined; }
-        out[names[i]] = {
-          type: typeof member,
-          arity: typeof member === "function" ? member.length : null,
-        };
-      }
-      return out;
-    };
-
-    var workspace = ipc.appWindow().getActiveWorkspace().getLogicalWorkspace();
-    var device = deviceName
-      ? ipc.network().getDevice(deviceName)
-      : ipc.network().getDeviceAt(0);
-
-    return {
-      success: true,
-      result: {
-        workspace: describe(workspace, candidates),
-        device: device ? describe(device, deviceCandidates) : null,
-        deviceName: device ? device.getName() : null,
-        devicePower: device ? device.getPower() : null,
-      },
-    };
-  } catch (error) {
-    return fail("Error probing API", error);
-  }
-};
 

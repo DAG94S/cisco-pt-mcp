@@ -442,23 +442,6 @@ TOOLS: list[dict] = [
         },
     },
     {
-        "name": "probeApi",
-        "description": (
-            "Read-only diagnostic. Reports which Packet Tracer JS API members exist on the "
-            "logical workspace and on a device (type and arity). Does not mutate the workspace."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "deviceName": {
-                    "type": "string",
-                    "description": "Device to inspect. Omit to use the first device on the workspace.",
-                },
-            },
-            "required": [],
-        },
-    },
-    {
         "name": "execCommand",
         "description": (
             "Run one IOS command on a device and return the new console output "
