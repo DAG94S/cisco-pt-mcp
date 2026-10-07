@@ -128,6 +128,11 @@
     getPduResults:       ["types"],
     getCommandLog:       ["deviceName", "limit"],
     addNote:             ["text", "x", "y"],
+    getNotes:            [],
+    updateNote:          ["noteId", "text", "x", "y"],
+    deleteNote:          ["noteId"],
+    saveFile:            ["filePath"],
+    execCommand:         ["deviceName", "command", "mode"],
   };
 
 
