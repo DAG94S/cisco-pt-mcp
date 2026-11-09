@@ -132,6 +132,8 @@
     updateNote:          ["noteId", "text", "x", "y"],
     deleteNote:          ["noteId"],
     saveFile:            ["filePath"],
+    openFile:            ["filePath"],
+    fastForwardTime:     [],
     execCommand:         ["deviceName", "command", "mode"],
   };
 

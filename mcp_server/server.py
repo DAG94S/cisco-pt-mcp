@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 import mcp.types as mcp_types
@@ -66,6 +67,21 @@ def build_server(bridge: PTBridge) -> Server:
         if name not in TOOLS_BY_NAME:
             return _to_text_content({"success": False, "error": f"unknown tool: {name}"})
 
+        try:
+            args = _normalize_tool_arguments(arguments)
+            if name == "openFile":
+                file_path = args.get("filePath")
+                if not isinstance(file_path, str) or not file_path.strip():
+                    raise MCPRequestError("filePath must be an absolute path to an existing .pkt file")
+                path = Path(file_path)
+                if not path.is_absolute() or path.suffix.lower() != ".pkt":
+                    raise MCPRequestError("filePath must be an absolute path to an existing .pkt file")
+                if not path.is_file():
+                    raise MCPRequestError("filePath does not identify an existing file")
+                args = {**args, "filePath": str(path.resolve())}
+        except MCPRequestError as exc:
+            return _to_text_content({"success": False, "error": str(exc)})
+
         # First call also covers the "PT not yet running" warmup window.
         if not bridge.is_connected:
             try:
@@ -74,7 +90,6 @@ def build_server(bridge: PTBridge) -> Server:
                 return _to_text_content({"success": False, "error": str(exc)})
 
         try:
-            args = _normalize_tool_arguments(arguments)
             result = await bridge.call_tool(name, args)
         except MCPRequestError as exc:
             log.warning("tool %s rejected invalid arguments: %s", name, exc)

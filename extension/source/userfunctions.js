@@ -838,6 +838,62 @@ deleteNote = function (noteId) {
 // Pegar TAL CUAL al final de userfunctions.js, después de deleteNote.
 // ---------------------------------------------------------------------------
 
+fastForwardTime = function () {
+  try {
+    ipc.appWindow().getRealtimeToolbar().fastForwardTime();
+    return { success: true, message: "Fast Forward Time requested; verify protocol state and routes afterwards" };
+  } catch (error) {
+    return fail("Error requesting Fast Forward Time", error);
+  }
+};
+
+openFile = function (filePath) {
+  try {
+    if (typeof filePath !== "string" || !/^(?:[A-Za-z]:[\\/]|\/|\\\\).+\.pkt$/i.test(filePath)) {
+      return { success: false, error: "filePath must be an absolute .pkt path" };
+    }
+    var app = ipc.appWindow();
+    var normalize = function (value) {
+      var path = String(value).replace(/\\/g, "/");
+      var unc = path.slice(0, 2) === "//";
+      var drive = /^[A-Za-z]:\//.test(path);
+      var rootSize = unc ? 2 : (drive ? 1 : 0);
+      var parts = path.split("/");
+      var normalized = [];
+      for (var i = 0; i < parts.length; i++) {
+        if (!parts[i] || parts[i] === ".") continue;
+        if (parts[i] === "..") {
+          if (normalized.length > rootSize) normalized.pop();
+        } else {
+          normalized.push(parts[i]);
+        }
+      }
+      path = (unc ? "//" : (drive ? "" : "/")) + normalized.join("/");
+      return unc || drive ? path.toLowerCase() : path;
+    };
+    var previousPath = String(app.getActiveFile().getSavedFilename());
+    if (normalize(previousPath) === normalize(filePath)) {
+      return { success: true, path: previousPath, requestedPath: filePath, alreadyOpen: true };
+    }
+    // Native fileOpen preserves save/cancel prompts. Do not bypass them or save
+    // over the active file. A modal prompt may require the user's response.
+    var returnCode = app.fileOpen(filePath);
+    var activePath = String(app.getActiveFile().getSavedFilename());
+    // The IPC enum is not a bool: returning 0 can mean success. Verify the
+    // active filename, retain the real code, and never assume its ordinal.
+    var verified = normalize(activePath) === normalize(filePath);
+    return {
+      success: verified,
+      path: activePath,
+      requestedPath: filePath,
+      returnCode: returnCode,
+      error: verified ? null : "File did not become active; opening failed or was cancelled",
+    };
+  } catch (error) {
+    return fail("Error opening file", error);
+  }
+};
+
 saveFile = function (filePath) {
   try {
     if (!filePath) {

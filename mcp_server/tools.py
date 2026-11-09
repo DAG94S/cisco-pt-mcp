@@ -14,6 +14,20 @@ INTERFACE_PATTERN = (
 
 TOOLS: list[dict] = [
     {
+        "name": "fastForwardTime",
+        "description": (
+            "Simulate one click of Packet Tracer's Realtime Fast Forward Time button. "
+            "Reports that the native operation was requested, not that routing has converged. "
+            "Verify protocol state and routes separately afterwards."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "addDevice",
         "description": (
             "Add a network device to the workspace. Call getNetwork first if "
@@ -416,6 +430,23 @@ TOOLS: list[dict] = [
                 "noteId": {"type": "string", "description": "UUID of the note to delete."},
             },
             "required": ["noteId"],
+        },
+    },
+    {
+        "name": "openFile",
+        "description": (
+            "Open an existing Packet Tracer .pkt file using its absolute local path. "
+            "Preserves Packet Tracer's native save/cancel prompts; if a prompt appears, "
+            "the user must answer it. Verify the returned active filename and read getNetwork "
+            "after opening. Does not save or overwrite the source file."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "filePath": {"type": "string", "description": "Absolute path to an existing .pkt file."},
+            },
+            "required": ["filePath"],
+            "additionalProperties": False,
         },
     },
     {

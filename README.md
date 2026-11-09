@@ -10,6 +10,12 @@ Let AI clients control a running Cisco Packet Tracer instance. Open source.
 
 Two components. Five minutes.
 
+For this fork's `openFile` and `fastForwardTime` tools, install the server from
+this checkout with `python -m pip install -e .` and configure your MCP client to
+run that Python interpreter with `-m mcp_server.server`. The upstream `uvx
+cisco-pt-mcp` package does not necessarily include these changes. Install the
+matching bundled `extension/cisco-pt-mcp.pts` in Packet Tracer as described below.
+
 ### 1. MCP Server
 
 [Install uv](https://docs.astral.sh/uv/getting-started/installation/) if you don't have it, then register with your client:
@@ -63,8 +69,63 @@ Click **Extensions → Packet Tracer MCP** to open the bridge window, then start
 
 ## Tools
 
+### Opening a saved network
+
+Call `openFile` with an absolute, existing local `.pkt` path, for example:
+
+```json
+{"filePath": "C:/Labs/team-01.pkt"}
+```
+
+The server rejects missing files, relative paths and other extensions before
+contacting Packet Tracer. The extension uses the native `fileOpen` operation,
+retains its return code and verifies `getActiveFile().getSavedFilename()`.
+An already active target returns `alreadyOpen: true` without reloading it.
+Packet Tracer's save/cancel prompts are preserved: answer any prompt in Packet
+Tracer, then check the result and call `getNetwork` to inspect the loaded network.
+No source file is saved or overwritten by this tool.
+
+**Installing this update:** replace the previously registered module with the
+bundled `extension/cisco-pt-mcp.pts`, which includes `openFile` and
+`fastForwardTime`, then restart the module and MCP client. Importing individual
+JavaScript files is only necessary when rebuilding after further source edits.
+
+**Rebuilding after source changes:** the checked-in `extension/cisco-pt-mcp.pts` is an
+encrypted Packet Tracer module, not a ZIP and not rebuilt by Python installation.
+Use **Extensions → Scripting → Configure PT Script Modules**, select the MCP module
+and click **Edit** to open its Scripting Interface.
+Import/update `extension/source/userfunctions.js` in its **Script Engine** files
+and `extension/source/interface/interface.js` in its **Custom Interface** files,
+preserving the existing module ID and other source files, then save/export the
+module to a new `.pts`. Stop the old module in **Configure PT Script Modules**,
+load/start the updated module and reconnect its bridge window. Restart the MCP
+server/client so that `openFile` is advertised. Verify with an expendable `.pkt`
+before using student submissions. Offline source tests do not verify the installed
+encrypted module.
+
+Run `python -m pytest -q` and `node --test tests/open_file.test.cjs` for offline tests.
+
+### Fast Forward Time
+
+Call `fastForwardTime` with `{}` to invoke one native click of the Realtime
+**Fast Forward Time** button. The operation calls
+`ipc.appWindow().getRealtimeToolbar().fastForwardTime()` once and reports the
+request. It does not claim the network has converged: inspect adjacencies and
+routing tables separately. Update the same `userfunctions.js` and
+`interface/interface.js` module sources described above and restart the MCP
+server/client to expose this tool. Test its adapter with
+`node --test tests/fast_forward.test.cjs`.
+
+Integration checked on Packet Tracer 9.0.1: opening a copy of a saved network
+returned success and the subsequent network query found 14 devices and 14 links.
+A repeated open kept the bridge connected. Fast Forward Time was accepted and
+kept the bridge connected on an empty workspace; protocol convergence was not
+tested by that check. Save/cancel dialogs were not exercised in the live test.
+
 | Tool | Description |
 |---|---|
+| `fastForwardTime` | Request one native Realtime Fast Forward Time click; verify convergence separately |
+| `openFile` | Open an existing absolute `.pkt` path and verify the active filename |
 | `addDevice` | Drop a router, switch, or PC onto the canvas |
 | `addModule` | Install an interface module into a device slot |
 | `addLink` | Connect two devices with a cable |

@@ -21,6 +21,8 @@ EXPECTED_TOOLS = {
     "setSimulationMode", "getSimulationStatus", "stepSimulation", "sendPdu",
     "renameDevice", "moveDevice", "setPower",
     "getPduResults", "getCommandLog",
+    "addNote", "getNotes", "updateNote", "deleteNote", "saveFile", "execCommand", "openFile",
+    "fastForwardTime",
 }
 
 
@@ -58,7 +60,7 @@ async def test_bridge_lifecycle():
 
 @pytest.mark.asyncio
 async def test_call_tool_without_plugin():
-    b = bridge.PTBridge(host="127.0.0.1", port=17532)
+    b = bridge.PTBridge(host="127.0.0.1", port=0)
     await b.start()
     try:
         with pytest.raises(RuntimeError, match=r"plugin"):
