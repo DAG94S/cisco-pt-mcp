@@ -25,10 +25,23 @@ PING_DONE = re.compile(
 TRACE_DONE = re.compile(r"Trace complete", re.I)
 PC_WITHOUT_IOS_CONSOLE = "enterCommand"
 
-DEFAULT_WAIT_S = 30.0
+DEFAULT_WAIT_S = 10.0
 POLL_S = 0.5
 GRACE_S = 1.0      # after the summary line, one more read for the trailing lines
-STABLE_S = 3.0     # non-ping commands: ended and no new output for this long
+STABLE_S = 2.0     # non-ping commands: ended and no new output for this long
+SILENT_S = 3.0     # no output event at all by then: the terminal is not reporting, stop
+
+
+def _unwrap(payload: Any) -> Any:
+    """The extension may return runCode's envelope {success, result, code}; keep result."""
+    if (
+        isinstance(payload, dict)
+        and "code" in payload
+        and "result" in payload
+        and isinstance(payload["result"], dict)
+    ):
+        return payload["result"]
+    return payload
 
 
 def _text(read: dict[str, Any]) -> tuple[str, str]:
@@ -56,8 +69,11 @@ async def exec_command(
     command = str(args.get("command") or "")
     device = args.get("deviceName")
 
+    async def call_unwrapped(name: str, payload: dict[str, Any]) -> Any:
+        return _unwrap(await call(name, payload))
+
     if not DEFERRED.match(command):
-        result = await call("execCommand", args)
+        result = await call_unwrapped("execCommand", args)
         failed_on_pc = (
             isinstance(result, dict)
             and result.get("success") is False
@@ -67,7 +83,7 @@ async def exec_command(
             return result
 
     wait = float(args.get("waitSeconds") or DEFAULT_WAIT_S)
-    start = await call(
+    start = await call_unwrapped(
         "startCommand", {"deviceName": device, "command": command, "mode": args.get("mode")}
     )
     if not (isinstance(start, dict) and start.get("success")):
@@ -81,7 +97,7 @@ async def exec_command(
     while True:
         await sleep(poll)
         elapsed += poll
-        read = await call("readCommandOutput", {"deviceName": device, "finish": False})
+        read = await call_unwrapped("readCommandOutput", {"deviceName": device, "finish": False})
         if not (isinstance(read, dict) and read.get("success")):
             return read
         text, _ = _text(read)
@@ -97,8 +113,10 @@ async def exec_command(
             break
         if elapsed >= wait:
             break
+        if not read.get("events") and not text.strip() and elapsed >= SILENT_S:
+            break
 
-    final = await call("readCommandOutput", {"deviceName": device, "finish": True})
+    final = await call_unwrapped("readCommandOutput", {"deviceName": device, "finish": True})
     if not (isinstance(final, dict) and final.get("success")):
         return final
     text, source = _text(final)
@@ -115,7 +133,9 @@ async def exec_command(
     }
     if not complete:
         result["note"] = (
-            f"command did not finish within {wait:.0f}s; output may be partial"
+            "no output event from the terminal"
+            if not final.get("events") and not text.strip()
+            else f"command did not finish within {wait:.0f}s; output may be partial"
         )
     if not text.strip():
         result["eventSample"] = final.get("eventSample")

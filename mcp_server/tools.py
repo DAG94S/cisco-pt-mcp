@@ -501,7 +501,7 @@ TOOLS: list[dict] = [
                 "waitSeconds": {
                     "type": "number",
                     "description": (
-                        "Maximum wait for ping, traceroute and PC commands. Default 30."
+                        "Maximum wait for ping, traceroute and PC commands. Default 10."
                     ),
                 },
             },

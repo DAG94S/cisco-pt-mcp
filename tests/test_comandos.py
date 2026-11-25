@@ -83,3 +83,41 @@ def test_other_execcommand_errors_are_returned_unchanged():
     error = {"success": False, "error": "Device not found: R9"}
     fake = FakePT([], exec_result=error)
     assert run(fake, {"deviceName": "R9", "command": "show ip route"}) == error
+
+
+class Enveloped(FakePT):
+    """The extension wraps every answer as runCode's {success, result, code}."""
+
+    async def __call__(self, name, args):
+        inner = await super().__call__(name, args)
+        return {"success": True, "result": inner, "code": "return f();"}
+
+
+def test_runcode_envelope_is_unwrapped():
+    fake = Enveloped(["Reply\n", "Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),\n",
+                      "Approximate round trip times\n"])
+    result = run(fake, {"deviceName": "PC10", "command": "ping 192.168.10.1"})
+    assert result["complete"] is True
+    assert "Approximate round trip times" in result["output"]
+
+
+def test_pc_fallback_sees_the_error_inside_the_envelope():
+    fake = Enveloped(["IPv4 Address......: 192.168.10.10\n"], ended_after=1,
+                     exec_result={"success": False, "error":
+                                  "Property 'enterCommand' of object is not a function"})
+    result = run(fake, {"deviceName": "PC10", "command": "ipconfig"})
+    assert "IPv4 Address" in result["output"]
+
+
+class Silent(FakePT):
+    async def __call__(self, name, args):
+        out = await super().__call__(name, args)
+        if name == "readCommandOutput":
+            out.update(output="", events=0)
+        return out
+
+
+def test_no_output_events_stop_early_with_a_clear_note():
+    result = run(Silent([]), {"deviceName": "PC10", "command": "ping 192.168.10.1"})
+    assert result["waitedSeconds"] == 3.0
+    assert result["note"] == "no output event from the terminal"
