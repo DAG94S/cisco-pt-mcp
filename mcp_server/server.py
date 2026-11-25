@@ -16,6 +16,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
 from .bridge import PTBridge
+from .comandos import exec_command
 from .tools import TOOLS, TOOLS_BY_NAME
 
 log = logging.getLogger(__name__)
@@ -90,7 +91,10 @@ def build_server(bridge: PTBridge) -> Server:
                 return _to_text_content({"success": False, "error": str(exc)})
 
         try:
-            result = await bridge.call_tool(name, args)
+            if name == "execCommand":
+                result = await exec_command(bridge.call_tool, args)
+            else:
+                result = await bridge.call_tool(name, args)
         except MCPRequestError as exc:
             log.warning("tool %s rejected invalid arguments: %s", name, exc)
             return _to_text_content({"success": False, "error": str(exc)})

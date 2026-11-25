@@ -135,6 +135,8 @@
     openFile:            ["filePath"],
     fastForwardTime:     [],
     execCommand:         ["deviceName", "command", "mode"],
+    startCommand:        ["deviceName", "command", "mode"],
+    readCommandOutput:   ["deviceName", "finish"],
   };
 
 

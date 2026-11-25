@@ -475,11 +475,12 @@ TOOLS: list[dict] = [
     {
         "name": "execCommand",
         "description": (
-            "Run one IOS command on a device and return the new console output "
-            "it produced. Use this to capture real 'show' output instead of "
-            "writing it from memory. Output that depends on simulator timing "
-            "(ping, traceroute) may come back incomplete; re-read by issuing "
-            "the command again."
+            "Run one command on a device and return the console output it "
+            "produced. Use this to capture real 'show' output instead of writing "
+            "it from memory. On routers and switches it runs IOS commands; on PCs "
+            "and servers it runs Command Prompt commands (ping, tracert, ipconfig, "
+            "arp -a). ping and traceroute/tracert wait until the command finishes "
+            "(up to waitSeconds) and report 'complete'."
         ),
         "inputSchema": {
             "type": "object",
@@ -493,7 +494,14 @@ TOOLS: list[dict] = [
                     "type": "string",
                     "description": (
                         "IOS mode to run it in. Defaults to 'enable', which is "
-                        "where show commands live. Use '' to keep the current mode."
+                        "where show commands live. Use '' to keep the current mode. "
+                        "Ignored on PCs."
+                    ),
+                },
+                "waitSeconds": {
+                    "type": "number",
+                    "description": (
+                        "Maximum wait for ping, traceroute and PC commands. Default 30."
                     ),
                 },
             },
