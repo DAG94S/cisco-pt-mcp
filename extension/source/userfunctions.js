@@ -983,9 +983,10 @@ execCommand = function (deviceName, command, mode) {
 // CiscoDevice.enterCommand devuelve solo lo que la consola imprimió hasta ese instante: los
 // "!!!!!" de un ping llegan después. La clase Pc no tiene enterCommand; su consola es
 // Pc.getCommandPrompt(), una TerminalLine cuyo enterCommand(string) no devuelve nada. En ambos
-// casos la salida llega por los eventos outputWritten y commandEnded de la TerminalLine
-// (API IPC de PT). startCommand se suscribe a ellos, lanza el comando y vuelve;
-// readCommandOutput entrega lo acumulado. El servidor consulta hasta que el comando termina.
+// casos la salida llega por los eventos outputWritten y commandEnded de una TerminalLine (API
+// IPC de PT). En un equipo IOS, enterCommand escribe en getIpcTerminalLine(), no en la consola
+// (getCommandLine), así que se escuchan las dos. startCommand se suscribe, lanza el comando y
+// vuelve; readCommandOutput entrega lo acumulado. El servidor consulta hasta que termina.
 
 var commandCaptures = {};
 
@@ -1014,50 +1015,55 @@ function enterCommandText(raw) {
   return "";
 }
 
-function commandTerminal(device) {
-  if (typeof device.getCommandPrompt === "function") {
-    var prompt = device.getCommandPrompt();
-    if (prompt) return { line: prompt, kind: "pc" };
+// Líneas que se escuchan, en orden de preferencia para la salida.
+function commandLines(device) {
+  var lines = [];
+  var add = function (name, getter) {
+    if (typeof device[getter] !== "function") return;
+    try {
+      var line = device[getter]();
+      if (line) lines.push({ name: name, line: line });
+    } catch (e) {}
+  };
+  if (typeof device.enterCommand === "function") {
+    add("ipc", "getIpcTerminalLine");
+    add("console", "getCommandLine");
+  } else {
+    add("pc", "getCommandPrompt");
   }
-  if (typeof device.getCommandLine === "function") {
-    var line = device.getCommandLine();
-    if (line) return { line: line, kind: "ios" };
-  }
-  return null;
+  return lines;
 }
 
-function CommandCapture(deviceName, command, line, kind) {
-  this.device = deviceName;
-  this.command = command;
+function LineListener(capture, name, line) {
+  this.capture = capture;
+  this.name = name;
   this.line = line;
-  this.kind = kind;
   this.output = "";
-  this.immediate = "";
-  this.ended = false;
-  this.endStatus = null;
   this.events = 0;
-  this.sample = null;
 }
 
-CommandCapture.prototype.onOutput = function (src, args) {
+LineListener.prototype.onOutput = function (src, args) {
   this.events++;
-  if (this.sample === null) {
-    try { this.sample = String(JSON.stringify(args)).slice(0, 300); } catch (e) { this.sample = String(args); }
+  if (this.capture.sample === null) {
+    try { this.capture.sample = String(JSON.stringify(args)).slice(0, 300); } catch (e) { this.capture.sample = String(args); }
   }
   var text = firstString(args);
   if (text !== null) this.output += text;
 };
 
-CommandCapture.prototype.onEnded = function (src, args) {
-  this.ended = true;
-  try { this.endStatus = String(JSON.stringify(args)).slice(0, 200); } catch (e) {}
+LineListener.prototype.onEnded = function (src, args) {
+  this.capture.ended = true;
+  try { this.capture.endStatus = this.name + ": " + String(JSON.stringify(args)).slice(0, 200); } catch (e) {}
 };
 
 function stopCapture(deviceName) {
   var cap = commandCaptures[deviceName];
   if (!cap) return;
-  try { cap.line.unregisterEvent("outputWritten", cap, cap.onOutput); } catch (e) {}
-  try { cap.line.unregisterEvent("commandEnded", cap, cap.onEnded); } catch (e) {}
+  for (var i = 0; i < cap.listeners.length; i++) {
+    var l = cap.listeners[i];
+    try { l.line.unregisterEvent("outputWritten", l, l.onOutput); } catch (e) {}
+    try { l.line.unregisterEvent("commandEnded", l, l.onEnded); } catch (e) {}
+  }
   delete commandCaptures[deviceName];
 }
 
@@ -1067,23 +1073,32 @@ startCommand = function (deviceName, command, mode) {
     if (!device) {
       return { success: false, error: "Device not found: " + deviceName };
     }
-    var term = commandTerminal(device);
-    if (!term) {
+    var lines = commandLines(device);
+    if (lines.length === 0) {
       return { success: false, error: "No command line on " + deviceName };
     }
     stopCapture(deviceName);
-    var cap = new CommandCapture(deviceName, String(command), term.line, term.kind);
+    var cap = {
+      command: String(command), immediate: "", ended: false, endStatus: null,
+      sample: null, listeners: [],
+    };
     commandCaptures[deviceName] = cap;
-    term.line.registerEvent("outputWritten", cap, cap.onOutput);
-    term.line.registerEvent("commandEnded", cap, cap.onEnded);
+    for (var i = 0; i < lines.length; i++) {
+      var l = new LineListener(cap, lines[i].name, lines[i].line);
+      l.line.registerEvent("outputWritten", l, l.onOutput);
+      l.line.registerEvent("commandEnded", l, l.onEnded);
+      cap.listeners.push(l);
+    }
 
     if (typeof device.enterCommand === "function") {
       var raw = device.enterCommand(String(command), mode ? String(mode) : "enable");
       cap.immediate = enterCommandText(raw);
     } else {
-      term.line.enterCommand(String(command));
+      lines[0].line.enterCommand(String(command));
     }
-    return { success: true, device: deviceName, command: String(command), terminal: term.kind };
+    var names = [];
+    for (var j = 0; j < lines.length; j++) names.push(lines[j].name);
+    return { success: true, device: deviceName, command: String(command), terminal: names.join(",") };
   } catch (error) {
     stopCapture(deviceName);
     return fail("Error starting command", error);
@@ -1096,21 +1111,33 @@ readCommandOutput = function (deviceName, finish) {
     if (!cap) {
       return { success: false, error: "No command started on " + deviceName };
     }
+    var output = "", from = null, events = 0, perLine = {};
+    for (var i = 0; i < cap.listeners.length; i++) {
+      var l = cap.listeners[i];
+      events += l.events;
+      perLine[l.name] = l.events;
+      if (!output && l.output) {
+        output = l.output;
+        from = l.name;
+      }
+    }
     var result = {
       success: true,
       device: deviceName,
       command: cap.command,
-      terminal: cap.kind,
-      output: cap.output,
+      terminal: from,
+      output: output,
       immediate: cap.immediate,
       ended: cap.ended,
       endStatus: cap.endStatus,
-      events: cap.events,
+      events: events,
+      eventsPerLine: perLine,
       eventSample: cap.sample,
     };
     try {
-      if (typeof cap.line.getOutput === "function") {
-        result.consoleTail = String(cap.line.getOutput() || "").slice(-2000);
+      var first = cap.listeners[0].line;
+      if (typeof first.getOutput === "function") {
+        result.consoleTail = String(first.getOutput() || "").slice(-2000);
       }
     } catch (e) {}
     if (finish) stopCapture(deviceName);

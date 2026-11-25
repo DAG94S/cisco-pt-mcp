@@ -45,20 +45,40 @@ test('PC: lanza el comando en el Command Prompt y acumula outputWritten', () => 
   assert.equal(line.count('outputWritten'), 0, 'finish desuscribe los eventos');
 });
 
-test('IOS: usa enterCommand del equipo y escucha su línea de comandos', () => {
-  const line = fakeLine();
+test('IOS: usa enterCommand y lee la línea IPC, donde escribe enterCommand', () => {
+  const ipcLine = fakeLine();
+  const consoleLine = fakeLine();
   const calls = [];
   const ctx = load({DS1: {
-    getCommandLine: () => line,
+    getIpcTerminalLine: () => ipcLine,
+    getCommandLine: () => consoleLine,
     enterCommand: (cmd, mode) => { calls.push([cmd, mode]); return [0, 'Type escape sequence to abort.\n']; },
   }});
   const start = ctx.startCommand('DS1', 'ping 192.168.30.10');
-  assert.equal(start.terminal, 'ios');
+  assert.equal(start.terminal, 'ipc,console');
   assert.deepEqual(calls, [['ping 192.168.30.10', 'enable']]);
-  line.emit('outputWritten', '!!!!!\nSuccess rate is 100 percent (5/5)\n');
-  const read = ctx.readCommandOutput('DS1', false);
+  ipcLine.emit('outputWritten', '!!!!!\nSuccess rate is 100 percent (5/5)\n');
+  const read = ctx.readCommandOutput('DS1', true);
   assert.match(read.immediate, /escape sequence/);
   assert.match(read.output, /Success rate is 100 percent/);
+  assert.equal(read.terminal, 'ipc');
+  assert.equal(read.eventsPerLine.ipc, 1);
+  assert.equal(read.eventsPerLine.console, 0);
+  assert.equal(ipcLine.count('outputWritten') + consoleLine.count('outputWritten'), 0);
+});
+
+test('IOS: si solo la consola recibe salida, se usa la consola', () => {
+  const ipcLine = fakeLine();
+  const consoleLine = fakeLine();
+  const ctx = load({DS1: {
+    getIpcTerminalLine: () => ipcLine, getCommandLine: () => consoleLine,
+    enterCommand: () => [0, ''],
+  }});
+  ctx.startCommand('DS1', 'ping 1.1.1.1');
+  consoleLine.emit('outputWritten', 'Success rate is 0 percent (0/5)\n');
+  const read = ctx.readCommandOutput('DS1', false);
+  assert.equal(read.terminal, 'console');
+  assert.match(read.output, /0 percent/);
 });
 
 test('un comando nuevo en el mismo equipo descarta la captura anterior', () => {
