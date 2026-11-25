@@ -14,9 +14,13 @@ This prevents the actual `Packet Tracer MCP` menu item from appearing under the 
 ## 2. Definitive Fix Procedure
 
 ### Step 1: Copy the PTS binary to the system extensions directory
+Set the two paths for your machine: the Packet Tracer installation folder and this repository's
+checkout.
 ```powershell
-New-Item -ItemType Directory -Force -Path "F:\Program Files\Cisco Packet Tracer 9.0.1\extensions\cisco-pt-mcp"
-Copy-Item -Force "C:\Users\Diego\.gemini\antigravity-cli\tools\cisco-pt-mcp-repo\extension\cisco-pt-mcp.pts" "F:\Program Files\Cisco Packet Tracer 9.0.1\extensions\cisco-pt-mcp\cisco-pt-mcp.pts"
+$pt   = "C:\Program Files\Cisco Packet Tracer 9.0.1"
+$repo = "C:\path\to\cisco-pt-mcp"
+New-Item -ItemType Directory -Force -Path "$pt\extensions\cisco-pt-mcp"
+Copy-Item -Force "$repo\extension\cisco-pt-mcp.pts" "$pt\extensions\cisco-pt-mcp\cisco-pt-mcp.pts"
 ```
 
 ### Step 2: Configure in Packet Tracer GUI
@@ -24,7 +28,7 @@ Copy-Item -Force "C:\Users\Diego\.gemini\antigravity-cli\tools\cisco-pt-mcp-repo
 2. Go to **Extensions -> Scripting -> Configure PT Script Modules...**
 3. Select any residual `com.yourcompany...` row and click **Remove**.
 4. Click **Add** and choose:
-   `F:\Program Files\Cisco Packet Tracer 9.0.1\extensions\cisco-pt-mcp\cisco-pt-mcp.pts`
+   `<Packet Tracer folder>\extensions\cisco-pt-mcp\cisco-pt-mcp.pts`
 5. On the right panel, select **On Startup**.
 6. On the left panel, click **Start**.
 7. Click **Ok** and restart Packet Tracer.

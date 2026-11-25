@@ -2,19 +2,32 @@
 
 Let AI clients control a running Cisco Packet Tracer instance. Open source.
 
+> **This is a fork of [muhammadbalawal/cisco-pt-mcp](https://github.com/muhammadbalawal/cisco-pt-mcp)**
+> (v0.1.6, MIT). All credit for the original server, extension and site goes to its author.
+> The fork adds, tested on Packet Tracer 9.0.1:
+>
+> - **Canvas notes:** `addNote`, `getNotes`, `updateNote`, `deleteNote`.
+> - **Files:** `saveFile` and `openFile` for `.pkt` workspaces.
+> - **Time:** `fastForwardTime`, one native Realtime "Fast Forward Time" click.
+> - **`execCommand` with real console output:**
+>   - On PCs and servers it runs Command Prompt commands (`ping`, `tracert`, `ipconfig`, `arp -a`).
+>   - On routers and switches, `ping` and `traceroute` wait for their summary line instead of
+>     returning an empty string.
+> - **Antigravity bridge** (`cisco_pt_bridge.py`).
+>
+> The fork is not published on PyPI: `uvx cisco-pt-mcp` installs the upstream package, which
+> lacks these tools. Install from this checkout instead (see
+> [Installation from this Repository](#installation-from-this-repository)) and load the bundled
+> `extension/cisco-pt-mcp.pts`.
+
 ![Demo](https://raw.githubusercontent.com/muhammadbalawal/cisco-pt-mcp/main/docs/demo.gif)
 
 ---
 
 ## Install
 
-Two components. Five minutes.
-
-For this fork's `openFile` and `fastForwardTime` tools, install the server from
-this checkout with `python -m pip install -e .` and configure your MCP client to
-run that Python interpreter with `-m mcp_server.server`. The upstream `uvx
-cisco-pt-mcp` package does not necessarily include these changes. Install the
-matching bundled `extension/cisco-pt-mcp.pts` in Packet Tracer as described below.
+Two components. Five minutes. The steps below describe the upstream package; for this fork's
+tools use [Installation from this Repository](#installation-from-this-repository).
 
 ### 1. MCP Server
 
@@ -149,7 +162,7 @@ tested by that check. Save/cancel dialogs were not exercised in the live test.
 | `updateNote` | Modify note text content or canvas coordinates |
 | `deleteNote` | Remove a text note from canvas by UUID |
 | `saveFile` | Save active Packet Tracer workspace (.pkt) to an absolute path |
-| `execCommand` | Execute a single IOS command and capture real terminal output |
+| `execCommand` | Run one command and capture its real output: IOS commands on routers and switches, Command Prompt commands (`ping`, `tracert`, `ipconfig`) on PCs; `ping`/`traceroute` wait until they finish (`waitSeconds`, default 10) |
 
 ---
 
@@ -164,17 +177,16 @@ cd cisco-pt-mcp
 pip install -e .
 ```
 
-### Configure in Claude Code (`~/.claude.json`)
-```json
-{
-  "mcpServers": {
-    "cisco-pt-mcp": {
-      "type": "stdio",
-      "command": "cisco-pt-mcp"
-    }
-  }
-}
+### Configure in Claude Code
+```sh
+claude mcp add cisco-pt-mcp --scope user -- python -m mcp_server.server
 ```
+Use the same Python interpreter that ran `pip install -e .`.
+
+Then load `extension/cisco-pt-mcp.pts` in Packet Tracer
+(**Extensions → Scripting → Configure PT Script Modules → Add**), start it and open
+**Extensions → Packet Tracer MCP** until it shows `connected`. See
+[TROUBLESHOOTING_EXTENSION.md](TROUBLESHOOTING_EXTENSION.md) if the menu item does not appear.
 
 ### Antigravity AI Bridge (`cisco_pt_bridge.py`)
 To use with Antigravity assistant on port 7532:
@@ -184,4 +196,4 @@ python cisco_pt_bridge.py
 
 ## License
 
-MIT
+MIT. Copyright of the original work: Muhammad Balawal (see [LICENSE](LICENSE)).
