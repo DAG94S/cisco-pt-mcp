@@ -984,9 +984,9 @@ execCommand = function (deviceName, command, mode) {
 // "!!!!!" de un ping llegan después. La clase Pc no tiene enterCommand; su consola es
 // Pc.getCommandPrompt(), una TerminalLine cuyo enterCommand(string) no devuelve nada. En ambos
 // casos la salida llega por los eventos outputWritten y commandEnded de una TerminalLine (API
-// IPC de PT). En un equipo IOS, enterCommand escribe en getIpcTerminalLine(), no en la consola
-// (getCommandLine), así que se escuchan las dos. startCommand se suscribe, lanza el comando y
-// vuelve; readCommandOutput entrega lo acumulado. El servidor consulta hasta que termina.
+// IPC de PT). En un equipo IOS el comando se teclea en la consola (getCommandLine) y se
+// escuchan esa línea y la IPC (getIpcTerminalLine). startCommand se suscribe, lanza el comando
+// y vuelve; readCommandOutput entrega lo acumulado. El servidor consulta hasta que termina.
 
 var commandCaptures = {};
 
@@ -1002,17 +1002,6 @@ function firstString(args) {
     }
   }
   return null;
-}
-
-function enterCommandText(raw) {
-  if (typeof raw === "string") return raw;
-  if (raw && typeof raw === "object") {
-    var cand = [raw[1], raw.second, raw.output, raw.text];
-    for (var i = 0; i < cand.length; i++) {
-      if (typeof cand[i] === "string") return cand[i];
-    }
-  }
-  return "";
 }
 
 // Líneas que se escuchan, en orden de preferencia para la salida.
@@ -1090,15 +1079,31 @@ startCommand = function (deviceName, command, mode) {
       cap.listeners.push(l);
     }
 
+    var typed = String(command);
+    var promptBefore = null, promptAfter = null;
     if (typeof device.enterCommand === "function") {
-      var raw = device.enterCommand(String(command), mode ? String(mode) : "enable");
-      cap.immediate = enterCommandText(raw);
+      // Lanzado con device.enterCommand, un ping IOS termina al instante y no escribe nada en
+      // ninguna línea (medido 2026-11-25). Se teclea en la consola, como un usuario.
+      var consoleLine = device.getCommandLine();
+      var readPrompt = function () {
+        try { return String(consoleLine.getPrompt() || ""); } catch (e) { return ""; }
+      };
+      promptBefore = readPrompt();
+      if (!/[>#]\s*$/.test(promptBefore)) {
+        consoleLine.enterCommand("");   // «Press RETURN to get started»
+      }
+      promptAfter = readPrompt();
+      if (promptAfter.indexOf("(config") !== -1) typed = "do " + typed;
+      consoleLine.enterCommand(typed);
     } else {
-      lines[0].line.enterCommand(String(command));
+      lines[0].line.enterCommand(typed);
     }
     var names = [];
     for (var j = 0; j < lines.length; j++) names.push(lines[j].name);
-    return { success: true, device: deviceName, command: String(command), terminal: names.join(",") };
+    return {
+      success: true, device: deviceName, command: String(command), typed: typed,
+      terminal: names.join(","), promptBefore: promptBefore, promptAfter: promptAfter,
+    };
   } catch (error) {
     stopCapture(deviceName);
     return fail("Error starting command", error);

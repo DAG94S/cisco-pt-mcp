@@ -138,6 +138,9 @@ async def exec_command(
             if not final.get("events")
             else f"command did not finish within {wait:.0f}s; output may be partial"
         )
+        for key in ("typed", "promptBefore", "promptAfter"):
+            if start.get(key) is not None:
+                result[key] = start[key]
     if not text.strip():
         result["eventSample"] = final.get("eventSample")
         result["endStatus"] = final.get("endStatus")

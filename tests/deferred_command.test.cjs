@@ -45,40 +45,53 @@ test('PC: lanza el comando en el Command Prompt y acumula outputWritten', () => 
   assert.equal(line.count('outputWritten'), 0, 'finish desuscribe los eventos');
 });
 
-test('IOS: usa enterCommand y lee la línea IPC, donde escribe enterCommand', () => {
+function iosDevice(prompt) {
   const ipcLine = fakeLine();
   const consoleLine = fakeLine();
-  const calls = [];
-  const ctx = load({DS1: {
+  consoleLine.prompt = prompt;
+  consoleLine.getPrompt = function () { return this.prompt; };
+  consoleLine.enterCommand = function (cmd) {
+    this.entered.push(cmd);
+    if (cmd === '') this.prompt = 'DS1>';
+  };
+  const device = {
     getIpcTerminalLine: () => ipcLine,
     getCommandLine: () => consoleLine,
-    enterCommand: (cmd, mode) => { calls.push([cmd, mode]); return [0, 'Type escape sequence to abort.\n']; },
-  }});
+    enterCommand: () => { throw new Error('el ping IOS no debe ir por device.enterCommand'); },
+  };
+  return {ipcLine, consoleLine, device};
+}
+
+test('IOS: teclea el comando en la consola y lee su salida', () => {
+  const {ipcLine, consoleLine, device} = iosDevice('DS1#');
+  const ctx = load({DS1: device});
   const start = ctx.startCommand('DS1', 'ping 192.168.30.10');
+  assert.equal(start.success, true);
   assert.equal(start.terminal, 'ipc,console');
-  assert.deepEqual(calls, [['ping 192.168.30.10', 'enable']]);
-  ipcLine.emit('outputWritten', '!!!!!\nSuccess rate is 100 percent (5/5)\n');
+  assert.deepEqual(consoleLine.entered, ['ping 192.168.30.10']);
+  consoleLine.emit('outputWritten', '!!!!!\nSuccess rate is 100 percent (5/5)\n');
   const read = ctx.readCommandOutput('DS1', true);
-  assert.match(read.immediate, /escape sequence/);
   assert.match(read.output, /Success rate is 100 percent/);
-  assert.equal(read.terminal, 'ipc');
-  assert.equal(read.eventsPerLine.ipc, 1);
-  assert.equal(read.eventsPerLine.console, 0);
+  assert.equal(read.terminal, 'console');
+  assert.equal(read.eventsPerLine.console, 1);
   assert.equal(ipcLine.count('outputWritten') + consoleLine.count('outputWritten'), 0);
 });
 
-test('IOS: si solo la consola recibe salida, se usa la consola', () => {
-  const ipcLine = fakeLine();
-  const consoleLine = fakeLine();
-  const ctx = load({DS1: {
-    getIpcTerminalLine: () => ipcLine, getCommandLine: () => consoleLine,
-    enterCommand: () => [0, ''],
-  }});
-  ctx.startCommand('DS1', 'ping 1.1.1.1');
-  consoleLine.emit('outputWritten', 'Success rate is 0 percent (0/5)\n');
-  const read = ctx.readCommandOutput('DS1', false);
-  assert.equal(read.terminal, 'console');
-  assert.match(read.output, /0 percent/);
+test('IOS: en modo configuración antepone do', () => {
+  const {consoleLine, device} = iosDevice('DS1(config-if)#');
+  const ctx = load({DS1: device});
+  const start = ctx.startCommand('DS1', 'ping 1.1.1.1');
+  assert.equal(start.typed, 'do ping 1.1.1.1');
+  assert.deepEqual(consoleLine.entered, ['do ping 1.1.1.1']);
+});
+
+test('IOS: con la consola en «Press RETURN» manda primero un Enter', () => {
+  const {consoleLine, device} = iosDevice('');
+  const ctx = load({DS1: device});
+  const start = ctx.startCommand('DS1', 'traceroute 1.1.1.1');
+  assert.deepEqual(consoleLine.entered, ['', 'traceroute 1.1.1.1']);
+  assert.equal(start.promptBefore, '');
+  assert.equal(start.promptAfter, 'DS1>');
 });
 
 test('un comando nuevo en el mismo equipo descarta la captura anterior', () => {
