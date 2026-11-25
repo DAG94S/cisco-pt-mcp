@@ -100,7 +100,7 @@ async def exec_command(
         read = await call_unwrapped("readCommandOutput", {"deviceName": device, "finish": False})
         if not (isinstance(read, dict) and read.get("success")):
             return read
-        text, _ = _text(read)
+        text, source = _text(read)
         if done_at is None and (PING_DONE.search(text) or TRACE_DONE.search(text)):
             done_at = elapsed
         unchanged = unchanged + poll if text == last else 0.0
@@ -108,12 +108,13 @@ async def exec_command(
         if done_at is not None and elapsed - done_at >= GRACE_S:
             complete = True
             break
-        if not is_ping and read.get("ended") and text.strip() and unchanged >= STABLE_S:
+        if (not is_ping and read.get("ended") and source == "events"
+                and unchanged >= STABLE_S):
             complete = True
             break
         if elapsed >= wait:
             break
-        if not read.get("events") and not text.strip() and elapsed >= SILENT_S:
+        if not read.get("events") and elapsed >= SILENT_S:
             break
 
     final = await call_unwrapped("readCommandOutput", {"deviceName": device, "finish": True})
@@ -134,7 +135,7 @@ async def exec_command(
     if not complete:
         result["note"] = (
             "no output event from the terminal"
-            if not final.get("events") and not text.strip()
+            if not final.get("events")
             else f"command did not finish within {wait:.0f}s; output may be partial"
         )
     if not text.strip():

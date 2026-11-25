@@ -121,3 +121,20 @@ def test_no_output_events_stop_early_with_a_clear_note():
     result = run(Silent([]), {"deviceName": "PC10", "command": "ping 192.168.10.1"})
     assert result["waitedSeconds"] == 3.0
     assert result["note"] == "no output event from the terminal"
+
+
+class ReturnOnly(FakePT):
+    """IOS traceroute: the command ends at once and only enterCommand's return has text."""
+
+    async def __call__(self, name, args):
+        out = await super().__call__(name, args)
+        if name == "readCommandOutput":
+            out.update(output="", events=0, ended=True,
+                       immediate="Type escape sequence to abort.\nTracing the route\n  1   \n")
+        return out
+
+
+def test_text_from_the_return_value_alone_is_never_complete():
+    result = run(ReturnOnly([]), {"deviceName": "DS1", "command": "traceroute 192.168.20.10"})
+    assert result["complete"] is False
+    assert "Tracing the route" in result["output"]
